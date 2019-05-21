@@ -41,6 +41,8 @@ object Main extends App {
       """.stripMargin
     analysisManager ! AnalyseTextRequest(reviewText)
 
+    Thread.sleep(1000)
+
     system.terminate()
 
 }
