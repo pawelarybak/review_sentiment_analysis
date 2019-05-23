@@ -1,21 +1,13 @@
 package review.sentiment.analysis.classifier
 
-import akka.actor.{Actor, ActorLogging, Props}
-import review.sentiment.analysis.manager.AnalysisManager.{CalculateMarkRequest, CalculateMarkResponse}
+import akka.actor.Props
 
 object ExampleClassifier {
     def props : Props = Props[ExampleClassifier]
 }
 
-class ExampleClassifier extends Actor with ActorLogging  {
+class ExampleClassifier extends AbstractClassifier  {
 
-    override def receive: Receive = {
-        case CalculateMarkRequest(text) =>
-            log.info(s"Received text: $text")
-
-            val mark : Int = 5
-
-            sender() ! CalculateMarkResponse(mark)
-    }
+    override def calculateMark(text: String): Int = 7
 
 }
