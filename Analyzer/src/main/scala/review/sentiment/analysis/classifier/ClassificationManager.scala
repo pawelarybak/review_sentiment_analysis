@@ -1,12 +1,12 @@
 package review.sentiment.analysis.classifier
 
 import akka.actor.{Actor, ActorLogging, Props}
-import akka.pattern.ask
+import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import review.sentiment.analysis.manager.AnalysisManager.{CalculateMarkRequest, CalculateMarkResponse}
 
-import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 
 object ClassificationManager {
     def props : Props = Props[ClassificationManager]
@@ -21,23 +21,26 @@ class ClassificationManager extends Actor with ActorLogging {
         context.actorOf(ExampleClassifier.props, "fourth_classifier")
     )
 
-    implicit val timeout: Timeout = Timeout(5 seconds)
+    private implicit val timeout: Timeout = Timeout(5 seconds)
+    private implicit val ec = ExecutionContext.global
 
     override def receive: Receive = {
         case CalculateMarkRequest(text) =>
             log.info(s"Received text: $text")
 
-            val marks : List[Int] = performClassificationRequests(text)
-            val finalMark : Int = calculateFinalMark(marks)
+            val marks : Future[List[Int]] = performClassificationRequests(text)
+            val finalMark : Future[Int] = marks.map(a => calculateFinalMark(a))
 
-            sender() ! CalculateMarkResponse(finalMark)
+            finalMark.map(a => CalculateMarkResponse(a))
+                     .pipeTo(sender())
     }
 
-    private def performClassificationRequests(requestText : String) : List[Int] = {
+    private def performClassificationRequests(requestText : String) : Future[List[Int]] = {
         val request = CalculateMarkRequest(requestText)
-        classifiers.map(_ ? request)
-                    .map(futureResult => Await.result(futureResult, timeout.duration).asInstanceOf[CalculateMarkResponse])
-                    .map(_.mark)
+        val futureMarks : List[Future[CalculateMarkResponse]] = classifiers.map(_.ask(request)
+                                                                            .mapTo[CalculateMarkResponse])
+        Future.sequence(futureMarks)
+            .map(_.map(_.mark))
     }
 
     private def calculateFinalMark(marks: List[Int]): Int = {
