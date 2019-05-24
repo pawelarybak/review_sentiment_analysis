@@ -31,7 +31,8 @@ class ClassificationManager extends Actor with ActorLogging {
             val marks : Future[List[Int]] = performClassificationRequests(text)
             val finalMark : Future[Int] = marks.map(a => calculateFinalMark(a))
 
-            finalMark.map(a => CalculateMarkResponse(a))
+            finalMark.map(mark => {log.info(s"Final mark: $mark"); mark})
+                     .map(a => CalculateMarkResponse(a))
                      .pipeTo(sender())
     }
 
