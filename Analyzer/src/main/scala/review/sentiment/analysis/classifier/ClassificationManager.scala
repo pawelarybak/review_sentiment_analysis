@@ -10,6 +10,8 @@ import scala.concurrent.{ExecutionContext, Future}
 object ClassificationManager {
     def props: Props = Props[ClassificationManager]
 
+    final case class TrainRequest(reviews: Array[(Array[Int], Int)])
+    final case class TrainResponse(accuracy: Float)
     final case class CalculateMarkRequest(text: Array[String])
     final case class CalculateMarkResponse(mark: Int)
 }
@@ -38,6 +40,11 @@ class ClassificationManager extends Actor with ActorLogging {
             finalMark.map(mark => {log.info(s"Final mark: $mark"); mark})
                      .map(a => CalculateMarkResponse(a))
                      .pipeTo(sender())
+
+        case TrainRequest(reviews) =>
+            log.info(s"Training using ${reviews.size} reviews...")
+
+            sender() ! TrainResponse(1.0f)
     }
 
     private def performClassificationRequests(requestText: Array[String]): Future[List[Int]] = {
