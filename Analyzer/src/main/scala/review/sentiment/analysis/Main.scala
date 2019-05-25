@@ -25,19 +25,20 @@ object Main extends App {
     private implicit val timeout = Timeout(5 seconds)
     private implicit val ec = ExecutionContext.global
 
-    println("Training AnalysisManager...")
+    println("Fetching reviews...")
     val reviews = fetchReviews()
-    val training = analysisManager.ask(AddReviewsRequest(reviews))
-                                  .mapTo[AddReviewsResponse]
-    training onComplete {
-        case Success(response) =>
-            println(s"Train complete. New words count: ${response.newWordsCount}, accuracy: ${response.accuracy}")
-            println("Starting HttpServer...")
-            httpServer ! StartServer
 
-        case Failure(t) =>
-            println(s"Train error: ${t.getMessage()}")
-    }
+    println("Training AnalysisManager...")
+    analysisManager
+        .ask(AddReviewsRequest(reviews))
+        .mapTo[AddReviewsResponse]
+        .map(response => (response.newWordsCount, response.accuracy))
+        .map({
+            case (newWordsCount, accuracy) =>
+                println(s"Train complete. New words count: ${newWordsCount}, accuracy: ${accuracy}")
+                println("Starting HttpServer...")
+                httpServer ! StartServer
+        })
 
     def fetchReviews(): Array[(String, Int)] = {
         Array(
