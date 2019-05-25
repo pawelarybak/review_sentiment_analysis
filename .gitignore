@@ -1,3 +1,10 @@
+# IntelliJ specific files
 .idea/
+
+# SBT output files
 /Analyzer/project/target
 /Analyzer/target
+
+# ENSIME plugin specific files
+.ensime
+.ensime_cache/
