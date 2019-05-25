@@ -8,6 +8,6 @@ object SecondClassifier {
 
 class SecondClassifier extends AbstractClassifier  {
 
-    override def calculateMark(text: Array[String]): Int = 5
+    override def calculateMark(vec: Array[Int]): Int = 5
 
 }

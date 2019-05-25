@@ -32,7 +32,6 @@ object Main extends App {
     training onComplete {
         case Success(response) =>
             println(s"Train complete. New words count: ${response.newWordsCount}, accuracy: ${response.accuracy}")
-
             println("Starting HttpServer...")
             httpServer ! StartServer
 

@@ -12,7 +12,7 @@ object ClassificationManager {
 
     final case class TrainRequest(reviews: Array[(Array[Int], Int)])
     final case class TrainResponse(accuracy: Float)
-    final case class CalculateMarkRequest(text: Array[String])
+    final case class CalculateMarkRequest(vec: Array[Int])
     final case class CalculateMarkResponse(mark: Int)
 }
 
@@ -31,10 +31,10 @@ class ClassificationManager extends Actor with ActorLogging {
     private implicit val ec = ExecutionContext.global
 
     override def receive: Receive = {
-        case CalculateMarkRequest(text) =>
-            log.info(s"Received text: ${text.mkString(" ")}")
+        case CalculateMarkRequest(vec) =>
+            log.info(s"Received vector: ${vec.mkString(" ")}")
 
-            val marks: Future[List[Int]] = performClassificationRequests(text)
+            val marks: Future[List[Int]] = performClassificationRequests(vec)
             val finalMark: Future[Int] = marks.map(a => calculateFinalMark(a))
 
             finalMark.map(mark => {log.info(s"Final mark: $mark"); mark})
@@ -47,8 +47,8 @@ class ClassificationManager extends Actor with ActorLogging {
             sender() ! TrainResponse(1.0f)
     }
 
-    private def performClassificationRequests(requestText: Array[String]): Future[List[Int]] = {
-        val calculateMarkRequest = CalculateMarkRequest(requestText)
+    private def performClassificationRequests(vec: Array[Int]): Future[List[Int]] = {
+        val calculateMarkRequest = CalculateMarkRequest(vec)
         val futureMarks = classifiers.map(_.ask(calculateMarkRequest).mapTo[CalculateMarkResponse])
 
         Future.sequence(futureMarks).map(_.map(_.mark))

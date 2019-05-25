@@ -11,8 +11,6 @@ import morfologik.stemming.polish.PolishStemmer
 object Stemmer {
     def props: Props = Props[Stemmer]
 
-    final case class StemmingRequest(rawText: String)
-    final case class StemmingResponse(processedText: Array[String])
     final case class StemmingsRequest(rawTexts: Array[String])
     final case class StemmingsResponse(processedTexts: Array[Array[String]])
 }
@@ -26,11 +24,6 @@ class Stemmer extends Actor with ActorLogging {
     private val stopWords = loadStopWords()
 
     override def receive: Receive = {
-        case StemmingRequest(rawText) =>
-            log.info(s"Stemming one raw text...")
-            val processedText = processText(rawText)
-            sender() ! StemmingResponse(processedText)
-
         case StemmingsRequest(rawTexts) =>
             log.info(s"Stemming ${rawTexts.size} raw texts...")
             val processedTexts = rawTexts.map(processText)

@@ -11,9 +11,9 @@ import akka.util.Timeout
 import review.sentiment.analysis.classifier.ClassificationManager
 import review.sentiment.analysis.classifier.ClassificationManager.{CalculateMarkRequest, CalculateMarkResponse, TrainRequest, TrainResponse}
 import review.sentiment.analysis.preprocessing.Stemmer
-import review.sentiment.analysis.preprocessing.Stemmer.{StemmingRequest, StemmingResponse, StemmingsRequest, StemmingsResponse}
+import review.sentiment.analysis.preprocessing.Stemmer.{StemmingsRequest, StemmingsResponse}
 import review.sentiment.analysis.bowgen.BOWGenerator
-import review.sentiment.analysis.bowgen.BOWGenerator.{AddTextsRequest, AddTextsResponse}
+import review.sentiment.analysis.bowgen.BOWGenerator.{AddTextsRequest, AddTextsResponse, AnnotateTextsRequest, AnnotateTextsResponse}
 
 object AnalysisManager {
     final case class AddReviewsRequest(reviews: Array[(String, Int)])
@@ -36,40 +36,40 @@ class AnalysisManager extends Actor with ActorLogging {
     override def receive: Receive = {
         case AddReviewsRequest(reviews) =>
             log.info(s"Adding ${reviews.size} reviews...")
-            val texts = reviews.map(_._1)
+            val rawTexts = reviews.map(_._1)
             val marks = reviews.map(_._2)
             val requestSender = sender()
-            val textAdding =
-                preprocessor.ask(StemmingsRequest(texts))
-                            .mapTo[StemmingsResponse]
-                            .map(_.processedTexts)
-                            .flatMap(processedTexts => bowGenerator.ask(AddTextsRequest(processedTexts)))
-                            .mapTo[AddTextsResponse]
-                            .map(response => (response.newWordsCount, response.vecs))
-
-            textAdding onComplete {
-                case Success((newWordsCount, vecs)) =>
-                    val processedReviews = vecs.zip(marks)
-                    classificationManager.ask(TrainRequest(processedReviews))
-                        .mapTo[TrainResponse]
-                        .map(response => response.accuracy)
-                        .map(accuracy => AddReviewsResponse(newWordsCount, accuracy))
-                        .pipeTo(requestSender)
-
-                case Failure(t) =>
-                    println("Could not add texts")
-                    // What the fuck to do now?
-            }
+            preprocessor
+                .ask(StemmingsRequest(rawTexts))
+                .mapTo[StemmingsResponse]
+                .map(_.processedTexts)
+                .flatMap(processedTexts => bowGenerator.ask(AddTextsRequest(processedTexts)))
+                .mapTo[AddTextsResponse]
+                .map(response => (response.newWordsCount, response.vecs))
+                .map({
+                    case (newWordsCount, vecs) =>
+                        val processedReviews = vecs.zip(marks)
+                        classificationManager
+                            .ask(TrainRequest(processedReviews))
+                            .mapTo[TrainResponse]
+                            .map(response => response.accuracy)
+                            .map(accuracy => AddReviewsResponse(newWordsCount, accuracy))
+                            .pipeTo(requestSender)
+                })
 
         case AnalyseTextRequest(text) =>
             log.info(s"Analysing text of size ${text.size}...")
-            preprocessor.ask(StemmingRequest(text))
-                        .mapTo[StemmingResponse]
-                        .map(_.processedText)
-                        .flatMap(processedText => classificationManager.ask(CalculateMarkRequest(processedText)))
-                        .mapTo[CalculateMarkResponse]
-                        .map(response => AnalyseTextResponse(response.mark))
-                        .pipeTo(sender())
+            preprocessor
+                .ask(StemmingsRequest(Array(text)))
+                .mapTo[StemmingsResponse]
+                .map(_.processedTexts.head)
+                .flatMap(processedText => bowGenerator.ask(AnnotateTextsRequest(Array(processedText))))
+                .mapTo[AnnotateTextsResponse]
+                .map(_.vecs.head)
+                .flatMap(vec => classificationManager.ask(CalculateMarkRequest(vec)))
+                .mapTo[CalculateMarkResponse]
+                .map(response => AnalyseTextResponse(response.mark))
+                .pipeTo(sender())
     }
 
 }

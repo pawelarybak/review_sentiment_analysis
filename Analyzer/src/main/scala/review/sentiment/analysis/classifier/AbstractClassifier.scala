@@ -6,14 +6,13 @@ import review.sentiment.analysis.classifier.ClassificationManager.{CalculateMark
 abstract class AbstractClassifier extends Actor with ActorLogging {
 
     override def receive: Receive = {
-        case CalculateMarkRequest(text) =>
-            val mark : Int = calculateMark(text)
+        case CalculateMarkRequest(vec) =>
+            val mark : Int = calculateMark(vec)
 
-            log.info(s"Received text: ${text.mkString(" ")}, given mark: $mark")
+            log.info(s"Received vec: ${vec.mkString(" ")}, given mark: $mark")
 
             sender() ! CalculateMarkResponse(mark)
     }
 
-    def calculateMark(text: Array[String]): Int
-
+    def calculateMark(vec: Array[Int]): Int
 }
