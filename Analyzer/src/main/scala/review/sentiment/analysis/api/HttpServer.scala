@@ -10,7 +10,7 @@ class HttpServer extends HttpApp {
 
     var analyzeMethod : String => Future[Int] = _
 
-    def start(analyzeMethod : String => Future[Int]): Unit = {
+    def start(analyzeMethod: String => Future[Int]): Unit = {
         this.analyzeMethod = analyzeMethod
 
         startServer("localhost", 8080)

@@ -14,10 +14,7 @@ object Main extends App {
     println("Hello")
 
     val analysisManager : ActorRef = system.actorOf(Props[AnalysisManager], "analysis_manager")
-
     val httpServer = system.actorOf(Props(new HttpServerActor(analysisManager)), "http_server")
+
     httpServer ! StartServer
-
-//    system.terminate()
-
 }

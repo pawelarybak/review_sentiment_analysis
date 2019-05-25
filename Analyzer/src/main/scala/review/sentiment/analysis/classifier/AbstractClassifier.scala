@@ -1,7 +1,7 @@
 package review.sentiment.analysis.classifier
 
 import akka.actor.{Actor, ActorLogging}
-import review.sentiment.analysis.manager.AnalysisManager.{CalculateMarkRequest, CalculateMarkResponse}
+import review.sentiment.analysis.classifier.ClassificationManager.{CalculateMarkRequest, CalculateMarkResponse}
 
 abstract class AbstractClassifier extends Actor with ActorLogging {
 
@@ -9,11 +9,11 @@ abstract class AbstractClassifier extends Actor with ActorLogging {
         case CalculateMarkRequest(text) =>
             val mark : Int = calculateMark(text)
 
-            log.info(s"Received text: $text, given mark: $mark")
+            log.info(s"Received text: ${text.mkString(" ")}, given mark: $mark")
 
             sender() ! CalculateMarkResponse(mark)
     }
 
-    def calculateMark(text: String): Int
+    def calculateMark(text: Array[String]): Int
 
 }

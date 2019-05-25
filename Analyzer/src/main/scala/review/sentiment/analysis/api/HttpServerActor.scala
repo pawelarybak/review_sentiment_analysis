@@ -21,7 +21,7 @@ class HttpServerActor(analysisManager: ActorRef) extends Actor with ActorLogging
     implicit val materializer = ActorMaterializer()
     implicit val system = Main.system
     implicit val executionContext = system.dispatcher
-    implicit val timeout : Timeout = Timeout(5 seconds)
+    implicit val timeout = Timeout(5 seconds)
 
     val httpServer : HttpServer = new HttpServer
 
@@ -33,10 +33,10 @@ class HttpServerActor(analysisManager: ActorRef) extends Actor with ActorLogging
         httpServer.start(analyze)
     }
 
-    def analyze(text : String) : Future[Int] = {
+    def analyze(text: String): Future[Int] = {
         analysisManager.ask(AnalyseTextRequest(text))
-                        .mapTo[AnalyseTextResponse]
-                        .map(_.mark)
+                       .mapTo[AnalyseTextResponse]
+                       .map(_.mark)
     }
 
 }

@@ -3,11 +3,11 @@ package review.sentiment.analysis.classifier
 import akka.actor.Props
 
 object ExampleClassifier {
-    def props : Props = Props[ExampleClassifier]
+    def props: Props = Props[ExampleClassifier]
 }
 
 class ExampleClassifier extends AbstractClassifier  {
 
-    override def calculateMark(text: String): Int = 7
+    override def calculateMark(text: Array[String]): Int = 7
 
 }
