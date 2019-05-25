@@ -9,49 +9,63 @@ import morfologik.stemming.IStemmer
 import morfologik.stemming.polish.PolishStemmer
 
 object Stemmer {
-  def props: Props = Props[Stemmer]
+    def props: Props = Props[Stemmer]
 
-  final case class StemmingRequest(rawText: String)
-  final case class StemmingResponse(processedText: Array[String])
+    final case class StemmingRequest(rawText: String)
+    final case class StemmingResponse(processedText: Array[String])
+    final case class StemmingsRequest(rawTexts: Array[String])
+    final case class StemmingsResponse(processedTexts: Array[Array[String]])
 }
 
 class Stemmer extends Actor with ActorLogging {
 
-  import Stemmer._
+    import Stemmer._
 
-  private val tokenizer = """(?u)\b\p{L}+\b""".r
-  private val stemmer = new PolishStemmer()
-  private val stopWords = loadStopWords()
+    private val tokenizer = """(?u)\b\p{L}+\b""".r
+    private val stemmer = new PolishStemmer()
+    private val stopWords = loadStopWords()
 
-  override def receive: Receive = {
-    case StemmingRequest(rawText: String) =>
-      log.info(s"Stemming raw text of size: ${rawText.size}...")
-      val tokens = tokenizer.findAllIn(rawText).toArray
-      val processedText = tokens
-        .map(token => token.toLowerCase())
-        .map(token => stem(token))
-        .filter(token => !isStopWord(token))
+    override def receive: Receive = {
+        case StemmingRequest(rawText) =>
+            log.info(s"Stemming one raw text...")
+            val processedText = processText(rawText)
+            sender() ! StemmingResponse(processedText)
 
-      log.info(s"Processed text: ${processedText.mkString(" ")}")
-      sender() ! StemmingResponse(processedText)
-  }
+        case StemmingsRequest(rawTexts) =>
+            log.info(s"Stemming ${rawTexts.size} raw texts...")
+            val processedTexts = rawTexts.map(processText)
+            sender() ! StemmingsResponse(processedTexts)
+    }
 
-  private def stem(token: String): String = {
-    stemmer
-      .lookup(token)
-      .asScala
-      .headOption
-      .map(token => token.getStem.toString)
-      .getOrElse(token)
-  }
+    private def processText(rawText: String): Array[String] = {
+        log.debug(s"Processing raw text with size ${rawText.size}...")
 
-  private def isStopWord(token: String): Boolean = {
-    stopWords.contains(token)
-  }
+        val tokens = tokenizer.findAllIn(rawText).toArray
+        val processedText = tokens
+            .map(token => token.toLowerCase())
+            .map(token => stem(token))
+            .filter(token => !isStopWord(token))
 
-  private def loadStopWords(): Set[String] = {
-    Source.fromResource("polish-stopwords.txt")
-      .getLines
-      .toSet
-  }
+        log.debug(s"Processed text: ${processedText.mkString(" ")}")
+        processedText
+    }
+
+    private def stem(token: String): String = {
+        stemmer
+            .lookup(token)
+            .asScala
+            .headOption
+            .map(token => token.getStem.toString)
+            .getOrElse(token)
+    }
+
+    private def isStopWord(token: String): Boolean = {
+        stopWords.contains(token)
+    }
+
+    private def loadStopWords(): Set[String] = {
+        Source.fromResource("polish-stopwords.txt")
+            .getLines
+            .toSet
+    }
 }
