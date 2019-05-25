@@ -9,7 +9,7 @@ object BOWGenerator {
     def props: Props = Props[BOWGenerator]
 
     final case class AddTextsRequest(texts: Array[Array[String]])
-    final case class AddTextsResponse(newWordsCount: Int)
+    final case class AddTextsResponse(newWordsCount: Int, vecs: Array[Array[Int]])
     final case class AnnotateTextsRequest(texts: Array[Array[String]])
     final case class AnnotateTextsResponse(vecs: Array[Array[Int]])
 }
@@ -26,7 +26,8 @@ class BOWGenerator extends Actor with ActorLogging {
             val newWordsCount = texts.map(addText).sum
             log.info(s"Added $newWordsCount new words to BOW")
 
-            sender() ! AddTextsResponse(newWordsCount)
+            val vecs = texts.map(annotateText)
+            sender() ! AddTextsResponse(newWordsCount, vecs)
 
         case AnnotateTextsRequest(texts: Array[Array[String]]) =>
             log.info(s"Annotating ${texts.size} texts using BOW...")
