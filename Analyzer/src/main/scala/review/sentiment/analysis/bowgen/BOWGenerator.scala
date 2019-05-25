@@ -6,48 +6,61 @@ import scala.collection.mutable.{HashSet, HashMap}
 import akka.actor.{Actor, ActorLogging, Props}
 
 object BOWGenerator {
-  def props: Props = Props[BOWGenerator]
+    def props: Props = Props[BOWGenerator]
 
-  final case class AddTextRequest(text: Array[String])
-  final case class AddTextResponse(newWordsCount: Int)
-  final case class AnnotateRequest(text: Array[String])
-  final case class AnnotateResponse(vec: Array[Int])
+    final case class AddTextsRequest(texts: Array[Array[String]])
+    final case class AddTextsResponse(newWordsCount: Int)
+    final case class AnnotateTextsRequest(texts: Array[Array[String]])
+    final case class AnnotateTextsResponse(vecs: Array[Array[Int]])
 }
 
 class BOWGenerator extends Actor with ActorLogging {
 
-  import BOWGenerator._
+    import BOWGenerator._
 
-  private var bow = new collection.mutable.HashSet[String]
+    private var bow = new collection.mutable.HashSet[String]
 
-  override def receive: Receive = {
-    case AddTextRequest(text: Array[String]) =>
-      log.info(s"Adding text to BOW: ${text.mkString(" ")}...")
+    override def receive: Receive = {
+        case AddTextsRequest(texts: Array[Array[String]]) =>
+            log.info(s"Adding ${texts.size} texts to BOW...")
+            val newWordsCount = texts.map(addText).sum
+            log.info(s"Added $newWordsCount new words to BOW")
 
-      // Remove known words from text and add them to BOW
-      val notKnownWords = text.filterNot(bow.contains)
-      bow ++= notKnownWords
+            sender() ! AddTextsResponse(newWordsCount)
 
-      // Return new words count to sender
-      val newWordsCount = notKnownWords.size
-      log.info(s"New words count: $newWordsCount")
+        case AnnotateTextsRequest(texts: Array[Array[String]]) =>
+            log.info(s"Annotating ${texts.size} texts using BOW...")
+            val vecs = texts.map(annotateText)
 
-      sender() ! AddTextResponse(newWordsCount)
+            sender() ! AnnotateTextsResponse(vecs)
+    }
 
-    case AnnotateRequest(text: Array[String]) =>
-      log.info(s"Annotating with BOW text: ${text.mkString(" ")}...")
+    def addText(text: Array[String]): Int = {
+        log.debug(s"Adding to BOW text: ${text.mkString(" ")}")
 
-      // Create integer vector for occurencies
-      var vec = collection.mutable.HashMap(bow.toVector.map(w => (w, 0)): _*)
+        // Remove known words from text and add them to BOW
+        val notKnownWords = text.filterNot(bow.contains)
+        bow ++= notKnownWords
 
-      // Remove not known words from text
-      val knownWords = text.filter(bow.contains)
+        val newWordsCount = notKnownWords.size
+        log.debug(s"New words count: $newWordsCount")
+        newWordsCount
+    }
 
-      // For each known word increment vec's counter
-      knownWords.foreach(w => vec(w) += 1)
+    def annotateText(text: Array[String]): Array[Int] = {
+        log.debug(s"Annotating using BOW text: ${text.mkString(" ")}")
 
-      // Return final vector to sender
-      sender() ! AnnotateResponse(vec.map(v => v._2).toArray)
-  }
+        // Create integer vector for words occurencies
+        var vec = collection.mutable.HashMap(bow.toVector.map(w => (w, 0)): _*)
 
+        // Remove not known words from text
+        val knownWords = text.filter(bow.contains)
+
+        // For each known word increment vec's counter
+        knownWords.foreach(w => vec(w) += 1)
+
+        val finalVec = vec.map(v => v._2).toArray
+        log.debug(s"Final vector: ${finalVec.mkString(" ")}")
+        finalVec
+    }
 }
