@@ -23,16 +23,20 @@ class BOWGenerator extends Actor with ActorLogging {
     override def receive: Receive = {
         case AddTextsRequest(texts: Array[Array[String]]) =>
             log.info(s"Adding ${texts.size} texts to BOW...")
+
             val newWordsCount = texts.map(addText).sum
             log.info(s"Added $newWordsCount new words to BOW")
-
             val vecs = texts.map(annotateText)
+
+            log.info(s"Texts added to BOW successfully")
             sender() ! AddTextsResponse(newWordsCount, vecs)
 
         case AnnotateTextsRequest(texts: Array[Array[String]]) =>
             log.info(s"Annotating ${texts.size} texts using BOW...")
+
             val vecs = texts.map(annotateText)
 
+            log.info(s"Texts annotation complete")
             sender() ! AnnotateTextsResponse(vecs)
     }
 

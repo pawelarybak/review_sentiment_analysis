@@ -26,7 +26,10 @@ class Stemmer extends Actor with ActorLogging {
     override def receive: Receive = {
         case StemmingsRequest(rawTexts) =>
             log.info(s"Stemming ${rawTexts.size} raw texts...")
+
             val processedTexts = rawTexts.map(processText)
+
+            log.info(s"Stemming complete")
             sender() ! StemmingsResponse(processedTexts)
     }
 

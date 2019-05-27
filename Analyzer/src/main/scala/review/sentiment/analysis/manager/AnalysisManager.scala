@@ -14,10 +14,12 @@ import review.sentiment.analysis.preprocessing.Stemmer
 import review.sentiment.analysis.preprocessing.Stemmer.{StemmingsRequest, StemmingsResponse}
 import review.sentiment.analysis.bowgen.BOWGenerator
 import review.sentiment.analysis.bowgen.BOWGenerator.{AddTextsRequest, AddTextsResponse, AnnotateTextsRequest, AnnotateTextsResponse}
+import review.sentiment.analysis.training.ReviewsDB
+import review.sentiment.analysis.training.ReviewsDB.{GetReviewsRequest, GetReviewsResponse}
 
 object AnalysisManager {
-    final case class AddReviewsRequest(reviews: Array[(String, Int)])
-    final case class AddReviewsResponse(newWordsCount: Int, accuracy: Float)
+    final case class InitializeRequest()
+    final case class InitializeResponse()
     final case class AnalyseTextRequest(text: String)
     final case class AnalyseTextResponse(mark: Int)
 }
@@ -26,39 +28,29 @@ class AnalysisManager extends Actor with ActorLogging {
 
     import AnalysisManager._
 
-    private implicit val timeout = Timeout(5 seconds)
+    private implicit val timeout = Timeout(99999 seconds)
     private implicit val ec = ExecutionContext.global
 
     private val classificationManager = context.actorOf(ClassificationManager.props, "classification_manager")
     private val preprocessor = context.actorOf(Stemmer.props, "example_preprocessor")
+    private val reviewsDB = context.actorOf(ReviewsDB.props, "reviews_db")
     private val bowGenerator = context.actorOf(BOWGenerator.props, "bow_generator")
 
     override def receive: Receive = {
-        case AddReviewsRequest(reviews) =>
-            log.info(s"Adding ${reviews.size} reviews...")
-            val rawTexts = reviews.map(_._1)
-            val marks = reviews.map(_._2)
+        case InitializeRequest() =>
+            log.info("Initializing...")
+
             val requestSender = sender()
-            preprocessor
-                .ask(StemmingsRequest(rawTexts))
-                .mapTo[StemmingsResponse]
-                .map(_.processedTexts)
-                .flatMap(processedTexts => bowGenerator.ask(AddTextsRequest(processedTexts)))
-                .mapTo[AddTextsResponse]
-                .map(response => (response.newWordsCount, response.vecs))
-                .map({
-                    case (newWordsCount, vecs) =>
-                        val processedReviews = vecs.zip(marks)
-                        classificationManager
-                            .ask(TrainRequest(processedReviews))
-                            .mapTo[TrainResponse]
-                            .map(response => response.accuracy)
-                            .map(accuracy => AddReviewsResponse(newWordsCount, accuracy))
-                            .pipeTo(requestSender)
+            getReviews()
+                .flatMap(processReviews)
+                .map(_ => {
+                    log.info("Initialization finished")
+                    requestSender ! InitializeResponse()
                 })
 
         case AnalyseTextRequest(text) =>
             log.info(s"Analysing text of size ${text.size}...")
+
             preprocessor
                 .ask(StemmingsRequest(Array(text)))
                 .mapTo[StemmingsResponse]
@@ -72,4 +64,63 @@ class AnalysisManager extends Actor with ActorLogging {
                 .pipeTo(sender())
     }
 
+    private def getReviews(): Future[Array[(String, Int)]] = {
+        log.info(s"Getting rawReviews from DB...")
+
+        reviewsDB
+            .ask(GetReviewsRequest())
+            .mapTo[GetReviewsResponse]
+            .map(_.reviews)
+            .map(reviews => { log.info(s"Got ${reviews.size} reviews from DB"); reviews })
+    }
+
+    private def processReviews(rawReviews: Array[(String, Int)]): Future[Unit] = {
+        log.info(s"Processing ${rawReviews.size} raw reviews...");
+
+        val (rawTexts, marks) = rawReviews.unzip
+
+        stemTexts(rawTexts)
+            .flatMap(addProcessedTextsToBOW)
+            .flatMap(vecs => { trainClassifiers(vecs.zip(marks)) })
+            .map(_ => {
+                log.info("Processing finished")
+                Future.successful()
+            })
+    }
+
+    private def stemTexts(rawTexts: Array[String]): Future[Array[Array[String]]] = {
+        log.info(s"Stemming ${rawTexts.size} raw texts...")
+
+        preprocessor
+            .ask(StemmingsRequest(rawTexts))
+            .mapTo[StemmingsResponse]
+            .map(_.processedTexts)
+            .map(processedTexts => { log.info(s"Successfully stemmed ${processedTexts.size} raw texts"); processedTexts })
+    }
+
+    private def addProcessedTextsToBOW(processedTexts: Array[Array[String]]): Future[Array[Array[Int]]] = {
+        log.info(s"Adding ${processedTexts.size} processed texts to BOW...")
+
+        bowGenerator
+            .ask(AddTextsRequest(processedTexts))
+            .mapTo[AddTextsResponse]
+            .map(response => (response.newWordsCount, response.vecs))
+            .map({ case (newWordsCount, vecs) =>
+                log.info(s"Successfully added ${processedTexts.size} texts to BOW. New words count: ${newWordsCount}")
+                vecs
+            })
+    }
+
+    private def trainClassifiers(processedReviews: Array[(Array[Int], Int)]): Future[Unit] = {
+        log.info(s"Training classifiers using ${processedReviews.size} processed reviews...")
+
+        classificationManager
+            .ask(TrainRequest(processedReviews))
+            .mapTo[TrainResponse]
+            .map(_.accuracy)
+            .map(accuracy => {
+                log.info(s"Training with ${processedReviews.size} reviews finished. Accuracy: $accuracy");
+                Future.successful()
+            })
+    }
 }

@@ -44,7 +44,11 @@ class ClassificationManager extends Actor with ActorLogging {
         case TrainRequest(reviews) =>
             log.info(s"Training using ${reviews.size} reviews...")
 
-            sender() ! TrainResponse(1.0f)
+            Thread.sleep(2000)
+            val accuracy = 1.0f
+
+            log.info(s"Train complete. Accuracy: $accuracy")
+            sender() ! TrainResponse(accuracy)
     }
 
     private def performClassificationRequests(vec: Array[Int]): Future[List[Int]] = {

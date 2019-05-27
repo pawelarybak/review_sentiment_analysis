@@ -8,7 +8,7 @@ object ReviewsDB {
   def props: Props = Props[ReviewsDB]
 
   final case class GetReviewsRequest()
-  final case class GetReviewsResponse(reviews: List[(String, Int)])
+  final case class GetReviewsResponse(reviews: Array[(String, Int)])
 }
 
 class ReviewsDB extends Actor with ActorLogging {
@@ -24,11 +24,12 @@ class ReviewsDB extends Actor with ActorLogging {
       val reviews = Source.fromResource(dataPath)
           .getLines
           .drop(1) // csv header
+          .take(1000)
           .map(row => {
             val value = row.split(",", 2)
             (value(1), value(0).toFloat.toInt)
           })
-          .toList
+          .toArray
 
       sender() ! GetReviewsResponse(reviews)
   }
