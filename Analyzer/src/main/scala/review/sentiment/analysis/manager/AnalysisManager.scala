@@ -2,6 +2,7 @@ package review.sentiment.analysis.manager
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
+import scala.language.postfixOps
 import scala.util.{Success, Failure}
 
 import akka.actor.{Actor, ActorLogging}
@@ -84,7 +85,7 @@ class AnalysisManager extends Actor with ActorLogging {
             .flatMap(vecs => { trainClassifiers(vecs.zip(marks)) })
             .map(_ => {
                 log.info("Processing finished")
-                Future.successful()
+                Future.successful(Unit)
             })
     }
 
@@ -120,7 +121,7 @@ class AnalysisManager extends Actor with ActorLogging {
             .map(_.accuracy)
             .map(accuracy => {
                 log.info(s"Training with ${processedReviews.size} reviews finished. Accuracy: $accuracy");
-                Future.successful()
+                Future.successful(Unit)
             })
     }
 }

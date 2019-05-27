@@ -4,6 +4,7 @@ import com.typesafe.config.ConfigFactory
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
+import scala.language.postfixOps
 import scala.util.{Success, Failure}
 
 import akka.actor.{ActorRef, ActorSystem, Props}
@@ -31,5 +32,5 @@ object Main extends App {
         .ask(InitializeRequest())
         .mapTo[InitializeResponse]
         .map(_ => httpServer ! StartServer)
-        .map(_ => println("Initialization finished"))
+        .map(_ => println("Initialization finished!"))
 }
