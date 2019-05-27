@@ -2,7 +2,6 @@ package review.sentiment.analysis.bowgen
 
 import scala.io.Source
 import scala.collection.mutable.{HashSet, HashMap}
-
 import akka.actor.{Actor, ActorLogging, Props}
 
 object BOWGenerator {
@@ -25,10 +24,10 @@ class BOWGenerator extends Actor with ActorLogging {
             log.info(s"Adding ${texts.size} texts to BOW...")
 
             val newWordsCount = texts.map(addText).sum
-            log.info(s"Added $newWordsCount new words to BOW")
             val vecs = texts.map(annotateText)
 
-            log.info(s"Texts added to BOW successfully")
+            log.info(s"Successfully added ${texts.size} texts to BOW. New words count: $newWordsCount")
+
             sender() ! AddTextsResponse(newWordsCount, vecs)
 
         case AnnotateTextsRequest(texts: Array[Array[String]]) =>
@@ -45,9 +44,10 @@ class BOWGenerator extends Actor with ActorLogging {
 
         // Remove known words from text and add them to BOW
         val notKnownWords = text.filterNot(bow.contains)
+        val prevWordsCount = bow.size
         bow ++= notKnownWords
 
-        val newWordsCount = notKnownWords.size
+        val newWordsCount = (bow.size - prevWordsCount)
         log.debug(s"New words count: $newWordsCount")
         newWordsCount
     }
