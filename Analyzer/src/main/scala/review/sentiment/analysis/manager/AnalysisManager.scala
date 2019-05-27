@@ -5,7 +5,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Success, Failure}
 
-import akka.actor.{Actor, ActorLogging}
+import akka.actor.{Actor, ActorLogging, Props}
 import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 
@@ -19,13 +19,15 @@ import review.sentiment.analysis.training.ReviewsDB
 import review.sentiment.analysis.training.ReviewsDB.{GetReviewsRequest, GetReviewsResponse}
 
 object AnalysisManager {
+    def props: Props = Props[AnalysisManager]
+
     final case class InitializeRequest()
     final case class InitializeResponse()
     final case class AnalyseTextRequest(text: String)
     final case class AnalyseTextResponse(mark: Int)
 }
 
-class AnalysisManager extends Actor with ActorLogging {
+class AnalysisManager() extends Actor with ActorLogging {
 
     import AnalysisManager._
 

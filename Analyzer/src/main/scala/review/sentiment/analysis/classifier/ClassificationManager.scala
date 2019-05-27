@@ -2,6 +2,7 @@ package review.sentiment.analysis.classifier
 
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.pattern.{ask, pipe}
+import scala.language.postfixOps
 import akka.util.Timeout
 
 import scala.concurrent.duration._
@@ -16,18 +17,18 @@ object ClassificationManager {
     final case class CalculateMarkResponse(mark: Int)
 }
 
-class ClassificationManager extends Actor with ActorLogging {
+class ClassificationManager() extends Actor with ActorLogging {
 
     import ClassificationManager._
 
     private val classifiers = List(
         context.actorOf(ExampleClassifier.props, "example_classifier"),
-        context.actorOf(SecondClassifier.props, "second_classifier"),
-        context.actorOf(SecondClassifier.props, "third_classifier"),
+        context.actorOf(ExampleClassifier.props, "second_classifier"),
+        context.actorOf(ExampleClassifier.props, "third_classifier"),
         context.actorOf(ExampleClassifier.props, "fourth_classifier")
     )
 
-    private implicit val timeout: Timeout = Timeout(5 seconds)
+    private implicit val timeout: Timeout = Timeout(1000 seconds)
     private implicit val ec = ExecutionContext.global
 
     override def receive: Receive = {
@@ -44,11 +45,23 @@ class ClassificationManager extends Actor with ActorLogging {
         case TrainRequest(reviews) =>
             log.info(s"Training using ${reviews.size} reviews...")
 
-            Thread.sleep(2000)
-            val accuracy = 1.0f
+            val accuracies = performTrainRequests(reviews)
+            val finalAccuracy = accuracies.map(a => calculateFinalAccuracy(a))
 
-            log.info(s"Train complete. Accuracy: $accuracy")
-            sender() ! TrainResponse(accuracy)
+            finalAccuracy.map(accuracy => { log.info(s"Train complete. Final accuracy: $accuracy"); accuracy } )
+                         .map(accuracy => TrainResponse(accuracy))
+                         .pipeTo(sender())
+    }
+
+    private def performTrainRequests(reviews: Array[(Array[Int], Int)]): Future[List[Float]] = {
+        val trainRequest = TrainRequest(reviews)
+        val futureAccuracies = classifiers.map(_.ask(trainRequest).mapTo[TrainResponse])
+
+        Future.sequence(futureAccuracies).map(_.map(_.accuracy))
+    }
+
+    private def calculateFinalAccuracy(accuracies: List[Float]): Float = {
+        accuracies.sum / accuracies.size
     }
 
     private def performClassificationRequests(vec: Array[Int]): Future[List[Int]] = {

@@ -24,7 +24,7 @@ class ReviewsDB extends Actor with ActorLogging {
       val reviews = Source.fromResource(dataPath)
           .getLines
           .drop(1) // csv header
-          .take(1000)
+          .take(10)
           .map(row => {
             val value = row.split(",", 2)
             (value(1), value(0).toFloat.toInt)
