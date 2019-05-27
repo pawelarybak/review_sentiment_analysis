@@ -9,7 +9,7 @@ abstract class AbstractClassifier extends Actor with ActorLogging {
         case CalculateMarkRequest(vec) =>
             val mark : Int = calculateMark(vec)
 
-            log.info(s"Received vec: ${vec.mkString(" ")}, given mark: $mark")
+            log.info(s"Received vec of size ${vec.size}, given mark: $mark")
 
             sender() ! CalculateMarkResponse(mark)
     }

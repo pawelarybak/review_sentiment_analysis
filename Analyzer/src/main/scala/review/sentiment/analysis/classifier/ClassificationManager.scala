@@ -32,7 +32,7 @@ class ClassificationManager extends Actor with ActorLogging {
 
     override def receive: Receive = {
         case CalculateMarkRequest(vec) =>
-            log.info(s"Received vector: ${vec.mkString(" ")}")
+            log.info(s"Received vector of size ${vec.size}")
 
             val marks: Future[List[Int]] = performClassificationRequests(vec)
             val finalMark: Future[Int] = marks.map(a => calculateFinalMark(a))

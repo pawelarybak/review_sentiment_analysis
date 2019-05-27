@@ -16,6 +16,7 @@ import review.sentiment.analysis.manager.AnalysisManager
 import review.sentiment.analysis.manager.AnalysisManager.{InitializeRequest, InitializeResponse}
 
 object Main extends App {
+
     println("Initializing system...")
     val config = ConfigFactory.load()
     val system = ActorSystem("rsa-system", config)
