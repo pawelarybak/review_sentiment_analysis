@@ -4,8 +4,8 @@ import scala.io.Source
 import scala.collection.mutable.{HashSet, HashMap}
 import akka.actor.{Actor, ActorLogging, Props}
 
-object BOWGenerator {
-    def props: Props = Props[BOWGenerator]
+object BOWManager {
+    def props: Props = Props[BOWManager]
 
     final case class AddTextsRequest(texts: Array[Array[String]])
     final case class AddTextsResponse(newWordsCount: Int, vecs: Array[Array[Int]])
@@ -13,9 +13,9 @@ object BOWGenerator {
     final case class AnnotateTextsResponse(vecs: Array[Array[Int]])
 }
 
-class BOWGenerator extends Actor with ActorLogging {
+class BOWManager extends Actor with ActorLogging {
 
-    import BOWGenerator._
+    import BOWManager._
 
     private var bow = new collection.mutable.HashSet[String]
 

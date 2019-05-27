@@ -12,8 +12,8 @@ import review.sentiment.analysis.classifier.ClassificationManager
 import review.sentiment.analysis.classifier.ClassificationManager.{CalculateMarkRequest, CalculateMarkResponse, TrainRequest, TrainResponse}
 import review.sentiment.analysis.preprocessing.Stemmer
 import review.sentiment.analysis.preprocessing.Stemmer.{StemmingsRequest, StemmingsResponse}
-import review.sentiment.analysis.bowgen.BOWGenerator
-import review.sentiment.analysis.bowgen.BOWGenerator.{AddTextsRequest, AddTextsResponse, AnnotateTextsRequest, AnnotateTextsResponse}
+import review.sentiment.analysis.bowgen.BOWManager
+import review.sentiment.analysis.bowgen.BOWManager.{AddTextsRequest, AddTextsResponse, AnnotateTextsRequest, AnnotateTextsResponse}
 import review.sentiment.analysis.training.ReviewsDB
 import review.sentiment.analysis.training.ReviewsDB.{GetReviewsRequest, GetReviewsResponse}
 
@@ -34,7 +34,7 @@ class AnalysisManager extends Actor with ActorLogging {
     private val classificationManager = context.actorOf(ClassificationManager.props, "classification_manager")
     private val preprocessor = context.actorOf(Stemmer.props, "example_preprocessor")
     private val reviewsDB = context.actorOf(ReviewsDB.props, "reviews_db")
-    private val bowGenerator = context.actorOf(BOWGenerator.props, "bow_generator")
+    private val bowManager = context.actorOf(BOWManager.props, "bow_generator")
 
     override def receive: Receive = {
         case InitializeRequest() =>
@@ -55,7 +55,7 @@ class AnalysisManager extends Actor with ActorLogging {
                 .ask(StemmingsRequest(Array(text)))
                 .mapTo[StemmingsResponse]
                 .map(_.processedTexts.head)
-                .flatMap(processedText => bowGenerator.ask(AnnotateTextsRequest(Array(processedText))))
+                .flatMap(processedText => bowManager.ask(AnnotateTextsRequest(Array(processedText))))
                 .mapTo[AnnotateTextsResponse]
                 .map(_.vecs.head)
                 .flatMap(vec => classificationManager.ask(CalculateMarkRequest(vec)))
@@ -101,7 +101,7 @@ class AnalysisManager extends Actor with ActorLogging {
     private def addProcessedTextsToBOW(processedTexts: Array[Array[String]]): Future[Array[Array[Int]]] = {
         log.info(s"Adding ${processedTexts.size} processed texts to BOW...")
 
-        bowGenerator
+        bowManager
             .ask(AddTextsRequest(processedTexts))
             .mapTo[AddTextsResponse]
             .map(response => (response.newWordsCount, response.vecs))
