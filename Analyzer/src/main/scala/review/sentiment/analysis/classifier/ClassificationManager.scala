@@ -5,16 +5,20 @@ import akka.pattern.{ask, pipe}
 import scala.language.postfixOps
 import akka.util.Timeout
 
+import org.apache.spark.rdd.RDD
+import org.apache.spark.mllib.linalg.SparseVector
+import org.apache.spark.mllib.regression.LabeledPoint
+
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
 object ClassificationManager {
     def props: Props = Props[ClassificationManager]
 
-    final case class TrainRequest(reviews: Array[(Array[Int], Int)])
-    final case class TrainResponse(accuracy: Float)
-    final case class CalculateMarkRequest(vec: Array[Int])
-    final case class CalculateMarkResponse(mark: Int)
+    final case class TrainRequest(reviews: RDD[LabeledPoint])
+    final case class TrainResponse(accuracy: Double)
+    final case class CalculateMarkRequest(vec: SparseVector)
+    final case class CalculateMarkResponse(mark: Double)
 }
 
 class ClassificationManager() extends Actor with ActorLogging {
@@ -33,17 +37,17 @@ class ClassificationManager() extends Actor with ActorLogging {
 
     override def receive: Receive = {
         case CalculateMarkRequest(vec) =>
-            log.info(s"Received vector of size ${vec.size}")
+            log.info(s"Calculating mark for vector...")
 
-            val marks: Future[List[Int]] = performClassificationRequests(vec)
-            val finalMark: Future[Int] = marks.map(a => calculateFinalMark(a))
+            val marks = performClassificationRequests(vec)
+            val finalMark = marks.map(a => calculateFinalMark(a))
 
             finalMark.map(mark => {log.info(s"Final mark: $mark"); mark})
                      .map(a => CalculateMarkResponse(a))
                      .pipeTo(sender())
 
         case TrainRequest(reviews) =>
-            log.info(s"Training using ${reviews.size} reviews...")
+            log.info(s"Training using reviews...")
 
             val accuracies = performTrainRequests(reviews)
             val finalAccuracy = accuracies.map(a => calculateFinalAccuracy(a))
@@ -53,30 +57,29 @@ class ClassificationManager() extends Actor with ActorLogging {
                          .pipeTo(sender())
     }
 
-    private def performTrainRequests(reviews: Array[(Array[Int], Int)]): Future[List[Float]] = {
+    private def performTrainRequests(reviews: RDD[LabeledPoint]): Future[List[Double]] = {
         val trainRequest = TrainRequest(reviews)
         val futureAccuracies = classifiers.map(_.ask(trainRequest).mapTo[TrainResponse])
 
         Future.sequence(futureAccuracies).map(_.map(_.accuracy))
     }
 
-    private def calculateFinalAccuracy(accuracies: List[Float]): Float = {
+    private def calculateFinalAccuracy(accuracies: List[Double]): Double = {
         accuracies.sum / accuracies.size
     }
 
-    private def performClassificationRequests(vec: Array[Int]): Future[List[Int]] = {
+    private def performClassificationRequests(vec: SparseVector): Future[List[Double]] = {
         val calculateMarkRequest = CalculateMarkRequest(vec)
         val futureMarks = classifiers.map(_.ask(calculateMarkRequest).mapTo[CalculateMarkResponse])
 
         Future.sequence(futureMarks).map(_.map(_.mark))
     }
 
-    private def calculateFinalMark(marks: List[Int]): Int = {
+    private def calculateFinalMark(marks: List[Double]): Double = {
         val marksGrouped = marks.groupBy(identity).mapValues(_.size)
         val maxOccurrences = marksGrouped.maxBy(_._2)._2
         val mostOccurringMarks = marksGrouped.filter(_._2 == maxOccurrences).keys
 
         mostOccurringMarks.sum / mostOccurringMarks.size
     }
-
 }

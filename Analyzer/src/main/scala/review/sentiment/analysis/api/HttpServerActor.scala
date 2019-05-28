@@ -35,7 +35,7 @@ class HttpServerActor(analysisManager: ActorRef) extends Actor with ActorLogging
         httpServer.start(analyze)
     }
 
-    def analyze(text: String): Future[Int] = {
+    def analyze(text: String): Future[Double] = {
         analysisManager.ask(AnalyseTextRequest(text))
                        .mapTo[AnalyseTextResponse]
                        .map(_.mark)
