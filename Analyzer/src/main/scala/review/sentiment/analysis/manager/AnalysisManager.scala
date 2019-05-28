@@ -1,22 +1,21 @@
 package review.sentiment.analysis.manager
 
-import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
-import scala.language.postfixOps
-import scala.util.{Success, Failure}
-
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.SupervisorStrategy.Restart
+import akka.actor.{Actor, ActorLogging, OneForOneStrategy, Props, SupervisorStrategy}
 import akka.pattern.{ask, pipe}
 import akka.util.Timeout
-
+import review.sentiment.analysis.bowgen.BOWManager
+import review.sentiment.analysis.bowgen.BOWManager.{AddTextsRequest, AddTextsResponse, AnnotateTextsRequest, AnnotateTextsResponse}
 import review.sentiment.analysis.classifier.ClassificationManager
 import review.sentiment.analysis.classifier.ClassificationManager.{CalculateMarkRequest, CalculateMarkResponse, TrainRequest, TrainResponse}
 import review.sentiment.analysis.preprocessing.Stemmer
 import review.sentiment.analysis.preprocessing.Stemmer.{StemmingsRequest, StemmingsResponse}
-import review.sentiment.analysis.bowgen.BOWManager
-import review.sentiment.analysis.bowgen.BOWManager.{AddTextsRequest, AddTextsResponse, AnnotateTextsRequest, AnnotateTextsResponse}
 import review.sentiment.analysis.training.ReviewsDB
 import review.sentiment.analysis.training.ReviewsDB.{GetReviewsRequest, GetReviewsResponse}
+
+import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
+import scala.language.postfixOps
 
 object AnalysisManager {
     def props: Props = Props[AnalysisManager]
@@ -38,6 +37,10 @@ class AnalysisManager() extends Actor with ActorLogging {
     private val preprocessor = context.actorOf(Stemmer.props, "example_preprocessor")
     private val reviewsDB = context.actorOf(ReviewsDB.props, "reviews_db")
     private val bowManager = context.actorOf(BOWManager.props, "bow_generator")
+
+    override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy(maxNrOfRetries = 10, withinTimeRange = 1 minute) {
+        case _ => Restart
+    }
 
     override def receive: Receive = {
         case InitializeRequest() =>

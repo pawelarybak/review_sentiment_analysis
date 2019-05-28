@@ -1,18 +1,17 @@
 package review.sentiment.analysis.api
 
-import scala.concurrent.duration._
-import scala.concurrent.Future
-import scala.language.postfixOps
-
-import akka.actor.{Actor, ActorLogging, ActorRef}
-import akka.stream.ActorMaterializer
+import akka.actor.{Actor, ActorLogging, ActorRef, Kill}
 import akka.pattern.ask
+import akka.stream.ActorMaterializer
 import akka.util.Timeout
-
 import review.sentiment.analysis.Main
 import review.sentiment.analysis.api.HttpServerActor.StartServer
 import review.sentiment.analysis.manager.AnalysisManager.{AnalyseTextRequest, AnalyseTextResponse}
 
+import scala.concurrent.Future
+import scala.concurrent.duration._
+import scala.language.postfixOps
+import scala.util.{Failure, Success}
 
 object HttpServerActor {
     final case class StartServer()
@@ -32,7 +31,16 @@ class HttpServerActor(analysisManager: ActorRef) extends Actor with ActorLogging
     }
 
     def start(): Unit = {
-        httpServer.start(analyze)
+        httpServer.start(analyze, kill)
+    }
+
+    def kill(actor: String) : Unit = {
+        system.actorSelection(actor).resolveOne().onComplete {
+            case Success(actorRef) =>
+                actorRef ! Kill
+            case Failure(ex) =>
+                log.error(actor + " does not exist")
+        }
     }
 
     def analyze(text: String): Future[Int] = {

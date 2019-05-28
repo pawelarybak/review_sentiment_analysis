@@ -9,9 +9,12 @@ import scala.concurrent.Future
 class HttpServer extends HttpApp {
 
     var analyzeMethod : String => Future[Int] = _
+    var killMethod : String => Unit = _
 
-    def start(analyzeMethod: String => Future[Int]): Unit = {
+    def start(analyzeMethod: String => Future[Int],
+              killMethod: String => Unit): Unit = {
         this.analyzeMethod = analyzeMethod
+        this.killMethod = killMethod
 
         startServer("localhost", 8080)
     }
@@ -25,6 +28,14 @@ class HttpServer extends HttpApp {
                             complete(HttpEntity(ContentTypes.`text/plain(UTF-8)`, result.toString))
                         }
                     }
+                }
+            }
+        } ~
+        path("kill") {
+            delete {
+                parameters('actorId) { (actorId) =>
+                    killMethod.apply(actorId)
+                    complete(HttpEntity.Empty)
                 }
             }
         }

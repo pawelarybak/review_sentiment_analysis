@@ -1,12 +1,13 @@
 package review.sentiment.analysis.classifier
 
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.SupervisorStrategy.Stop
+import akka.actor.{Actor, ActorLogging, OneForOneStrategy, Props, SupervisorStrategy}
 import akka.pattern.{ask, pipe}
-import scala.language.postfixOps
 import akka.util.Timeout
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
+import scala.language.postfixOps
 
 object ClassificationManager {
     def props: Props = Props[ClassificationManager]
@@ -30,6 +31,10 @@ class ClassificationManager() extends Actor with ActorLogging {
 
     private implicit val timeout: Timeout = Timeout(1000 seconds)
     private implicit val ec = ExecutionContext.global
+
+    override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy(maxNrOfRetries = 10, withinTimeRange = 1 minute) {
+        case _ => Stop
+    }
 
     override def receive: Receive = {
         case CalculateMarkRequest(vec) =>
@@ -66,9 +71,14 @@ class ClassificationManager() extends Actor with ActorLogging {
 
     private def performClassificationRequests(vec: Array[Int]): Future[List[Int]] = {
         val calculateMarkRequest = CalculateMarkRequest(vec)
-        val futureMarks = classifiers.map(_.ask(calculateMarkRequest).mapTo[CalculateMarkResponse])
+        val futureMarks = classifiers.map(_.ask(calculateMarkRequest).recover( {
+            case e : Exception => CalculateMarkResponse(-1)
+        }).mapTo[CalculateMarkResponse])
 
-        Future.sequence(futureMarks).map(_.map(_.mark))
+        Future.sequence(futureMarks)
+            .map(_.map(_.mark)
+                    .filter(_ != -1)
+            )
     }
 
     private def calculateFinalMark(marks: List[Int]): Int = {
