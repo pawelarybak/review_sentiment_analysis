@@ -26,10 +26,10 @@ class ClassificationManager() extends Actor with ActorLogging {
     import ClassificationManager._
 
     private val classifiers = List(
-        context.actorOf(ExampleClassifier.props, "example_classifier"),
-        context.actorOf(ExampleClassifier.props, "second_classifier"),
-        context.actorOf(ExampleClassifier.props, "third_classifier"),
-        context.actorOf(ExampleClassifier.props, "fourth_classifier")
+        context.actorOf(OVRClassifier.props, "ovr_classifier_0"),
+        context.actorOf(OVRClassifier.props, "ovr_classifier_1"),
+        context.actorOf(OVRClassifier.props, "ovr_classifier_2"),
+        context.actorOf(OVRClassifier.props, "ovr_classifier_3")
     )
 
     private implicit val timeout: Timeout = Timeout(1000 seconds)

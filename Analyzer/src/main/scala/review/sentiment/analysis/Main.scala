@@ -21,7 +21,6 @@ object Spark {
     val session = SparkSession.builder()
         .master("local[*]")
         .appName("rsa-system")
-        .config("spark.cores.max", "4")
         .getOrCreate()
 
     val ctx = session.sparkContext
