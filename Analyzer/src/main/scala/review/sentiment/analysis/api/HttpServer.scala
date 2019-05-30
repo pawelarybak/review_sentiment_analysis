@@ -13,7 +13,7 @@ class HttpServer extends HttpApp {
     def start(analyzeMethod: String => Future[Double]): Unit = {
         this.analyzeMethod = analyzeMethod
 
-        startServer("localhost", 8080)
+        startServer("localhost", 8000)
     }
 
     override def routes: Route = {
