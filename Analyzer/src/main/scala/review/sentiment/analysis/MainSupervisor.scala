@@ -4,6 +4,7 @@ import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, SupervisorStrategy}
 import akka.pattern.ask
 import akka.util.Timeout
+
 import review.sentiment.analysis.api.HttpServerActor
 import review.sentiment.analysis.api.HttpServerActor.StartServer
 import review.sentiment.analysis.manager.AnalysisManager
@@ -11,7 +12,7 @@ import review.sentiment.analysis.manager.AnalysisManager.{InitializeRequest, Ini
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-
+import scala.language.postfixOps
 
 class MainSupervisor extends Actor with ActorLogging {
 
