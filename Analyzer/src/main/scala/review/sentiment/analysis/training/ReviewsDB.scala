@@ -2,36 +2,45 @@ package review.sentiment.analysis.training
 
 import scala.io.Source
 
+import review.sentiment.analysis.Spark
+
+import org.apache.spark.sql.types._
+import org.apache.spark.rdd.RDD
+
 import akka.actor.{Actor, ActorLogging, Props}
 
-object ReviewsDB {
-  def props: Props = Props[ReviewsDB]
+import Spark.session.implicits._
 
-  final case class GetReviewsRequest()
-  final case class GetReviewsResponse(reviews: Array[(String, Int)])
+object ReviewsDB {
+    def props: Props = Props[ReviewsDB]
+
+    final case class GetReviewsRequest()
+    final case class GetReviewsResponse(reviews: RDD[(Double, String)])
 }
 
 class ReviewsDB extends Actor with ActorLogging {
 
-  import ReviewsDB._
+    import ReviewsDB._
 
-  private val dataPath = "training_data.csv";
+    private val dataPath = "training_data.csv";
 
-  override def receive: Receive = {
-    case GetReviewsRequest() =>
-      log.info(s"Loading training data from: ${dataPath}...")
+    override def receive: Receive = {
+        case GetReviewsRequest() =>
+            log.info(s"Loading training data from: ${dataPath}...")
 
-      val reviews = Source.fromResource(dataPath)
-          .getLines
-          .drop(1) // csv header
-          .take(10)
-          .map(row => {
-            val value = row.split(",", 2)
-            (value(1), value(0).toFloat.toInt)
-          })
-          .toArray
+            val csvSchema = new StructType()
+                .add("rating", DoubleType, true)
+                .add("text", StringType, true)
+            val csv = Spark.sql.read
+                .option("header", "true")
+                .schema(csvSchema)
+                // .limit(100)
+                .csv("src/main/resources/training_data.csv")
+            val reviews = csv
+                .map(row => (row.getDouble(0), row.getString(1)))
+                .rdd
 
-      sender() ! GetReviewsResponse(reviews)
-  }
+            sender() ! GetReviewsResponse(reviews)
+    }
 
 }

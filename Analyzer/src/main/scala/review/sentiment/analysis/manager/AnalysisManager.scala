@@ -4,6 +4,12 @@ import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{Actor, ActorLogging, OneForOneStrategy, Props, SupervisorStrategy}
 import akka.pattern.{ask, pipe}
 import akka.util.Timeout
+
+import org.apache.spark.rdd.RDD
+import org.apache.spark.mllib.linalg.SparseVector
+import org.apache.spark.mllib.regression.LabeledPoint
+
+import review.sentiment.analysis.Spark
 import review.sentiment.analysis.bowgen.BOWManager
 import review.sentiment.analysis.bowgen.BOWManager.{AddTextsRequest, AddTextsResponse, AnnotateTextsRequest, AnnotateTextsResponse}
 import review.sentiment.analysis.classifier.ClassificationManager
@@ -23,7 +29,7 @@ object AnalysisManager {
     final case class InitializeRequest()
     final case class InitializeResponse()
     final case class AnalyseTextRequest(text: String)
-    final case class AnalyseTextResponse(mark: Int)
+    final case class AnalyseTextResponse(mark: Double)
 }
 
 class AnalysisManager() extends Actor with ActorLogging {
@@ -36,97 +42,94 @@ class AnalysisManager() extends Actor with ActorLogging {
     private val classificationManager = context.actorOf(ClassificationManager.props, "classification_manager")
     private val preprocessor = context.actorOf(Stemmer.props, "example_preprocessor")
     private val reviewsDB = context.actorOf(ReviewsDB.props, "reviews_db")
-    private val bowManager = context.actorOf(BOWManager.props, "bow_generator")
+    private val bowManager = context.actorOf(BOWManager.props, "bow_manager")
 
-    override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy(maxNrOfRetries = 10, withinTimeRange = 1 minute) {
+    override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy(maxNrOfRetries=10, withinTimeRange=1 minute) {
         case _ => Restart
     }
 
     override def receive: Receive = {
         case InitializeRequest() =>
             log.info("Initializing...")
-
             val requestSender = sender()
             getReviews()
-                .flatMap(processReviews)
-                .map(_ => {
-                    log.info("Initialization finished")
-                    requestSender ! InitializeResponse()
+                .map(reviews => {
+                    val marks = reviews.map(_._1)
+                    val rawTexts = reviews.map(_._2)
+                    stemTexts(rawTexts)
+                        .flatMap(addProcessedTextsToBOW)
+                        .map(vecs => zipRdds(marks, vecs).map(x => new LabeledPoint(x._1, x._2)))
+                        .flatMap(reviews => { trainClassifiers(reviews) })
+                        .map(_ => log.info("Initialization finished"))
+                        .map(_ => InitializeResponse())
+                        .pipeTo(requestSender)
                 })
 
         case AnalyseTextRequest(text) =>
             log.info(s"Analysing text of size ${text.size}...")
-
+            val texts = Spark.ctx.makeRDD(Array(text))
             preprocessor
-                .ask(StemmingsRequest(Array(text)))
+                .ask(StemmingsRequest(texts))
                 .mapTo[StemmingsResponse]
-                .map(_.processedTexts.head)
-                .flatMap(processedText => bowManager.ask(AnnotateTextsRequest(Array(processedText))))
+                .map(_.processedTexts)
+                .flatMap(processedTexts => bowManager.ask(AnnotateTextsRequest(processedTexts)))
                 .mapTo[AnnotateTextsResponse]
-                .map(_.vecs.head)
+                .map(_.vecs.first)
+                // .map(vecs => { log.info(s"Vector size: ${vecs.size}"); vecs})
                 .flatMap(vec => classificationManager.ask(CalculateMarkRequest(vec)))
                 .mapTo[CalculateMarkResponse]
                 .map(response => AnalyseTextResponse(response.mark))
                 .pipeTo(sender())
     }
 
-    private def getReviews(): Future[Array[(String, Int)]] = {
+    private def getReviews(): Future[RDD[(Double, String)]] = {
         log.info(s"Getting rawReviews from DB...")
 
         reviewsDB
             .ask(GetReviewsRequest())
             .mapTo[GetReviewsResponse]
             .map(_.reviews)
-            .map(reviews => { log.info(s"Got ${reviews.size} reviews from DB"); reviews })
+            // .map(reviews => { log.info(s"Got reviews from DB"); reviews })
     }
 
-    private def processReviews(rawReviews: Array[(String, Int)]): Future[Unit] = {
-        log.info(s"Processing ${rawReviews.size} raw reviews...");
+    private def zipRdds(marks: RDD[Double], vecs: RDD[SparseVector]): RDD[(Double, SparseVector)] = {
+        log.info(s"Joining processed texts with their marks...")
 
-        val (rawTexts, marks) = rawReviews.unzip
-
-        stemTexts(rawTexts)
-            .flatMap(addProcessedTextsToBOW)
-            .flatMap(vecs => { trainClassifiers(vecs.zip(marks)) })
-            .map(_ => {
-                log.info("Processing finished")
-                Future.successful(Unit)
-            })
+        // Workaround against inability to zip two RDD with different numbers of partitions
+        val newMarks = marks.zipWithIndex.map(_.swap)
+        val newVecs = vecs.zipWithIndex.map(_.swap)
+        newMarks.join(newVecs).map(_._2)
     }
 
-    private def stemTexts(rawTexts: Array[String]): Future[Array[Array[String]]] = {
-        log.info(s"Stemming ${rawTexts.size} raw texts...")
-
+    private def stemTexts(rawTexts: RDD[String]): Future[RDD[Array[String]]] = {
+        log.info(s"Stemming raw texts...")
         preprocessor
             .ask(StemmingsRequest(rawTexts))
             .mapTo[StemmingsResponse]
             .map(_.processedTexts)
-            .map(processedTexts => { log.info(s"Successfully stemmed ${processedTexts.size} raw texts"); processedTexts })
+            // .map(processedTexts => { log.info(s"Successfully stemmed raw texts"); processedTexts })
     }
 
-    private def addProcessedTextsToBOW(processedTexts: Array[Array[String]]): Future[Array[Array[Int]]] = {
-        log.info(s"Adding ${processedTexts.size} processed texts to BOW...")
-
+    private def addProcessedTextsToBOW(processedTexts: RDD[Array[String]]): Future[RDD[SparseVector]] = {
+        log.info(s"Adding processed texts to BOW...")
         bowManager
             .ask(AddTextsRequest(processedTexts))
             .mapTo[AddTextsResponse]
-            .map(response => (response.newWordsCount, response.vecs))
-            .map({ case (newWordsCount, vecs) =>
-                log.info(s"Successfully added ${processedTexts.size} texts to BOW. New words count: ${newWordsCount}")
-                vecs
-            })
+            .map(_.vecs)
+            // .map(response => (response.newWordsCount, response.vecs))
+            // .map({ case (newWordsCount, vecs) =>
+            //     log.info(s"Successfully added texts to BOW. New words count: ${newWordsCount}")
+            //     vecs
+            // })
     }
 
-    private def trainClassifiers(processedReviews: Array[(Array[Int], Int)]): Future[Unit] = {
-        log.info(s"Training classifiers using ${processedReviews.size} processed reviews...")
-
+    private def trainClassifiers(processedReviews: RDD[LabeledPoint]): Future[Unit] = {
+        log.info(s"Training classifiers using processed reviews...")
         classificationManager
             .ask(TrainRequest(processedReviews))
-            .mapTo[TrainResponse]
-            .map(_.accuracy)
-            .map(accuracy => {
-                log.info(s"Training with ${processedReviews.size} reviews finished. Accuracy: $accuracy");
-                Future.successful(Unit)
-            })
+            // .mapTo[TrainResponse]
+            // .map(_.accuracy)
+            // .map(accuracy => log.info(s"Training with reviews finished. Accuracy: $accuracy"))
+            .map(_ => Future.successful(Unit))
     }
 }

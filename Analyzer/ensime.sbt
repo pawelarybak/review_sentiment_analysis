@@ -1,1 +1,1 @@
-ensimeScalaVersion in ThisBuild := "2.12.8"
+ensimeScalaVersion in ThisBuild := "2.11.12"

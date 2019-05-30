@@ -8,15 +8,15 @@ import scala.concurrent.Future
 
 class HttpServer extends HttpApp {
 
-    var analyzeMethod : String => Future[Int] = _
+    var analyzeMethod : String => Future[Double] = _
     var killMethod : String => Unit = _
 
-    def start(analyzeMethod: String => Future[Int],
+    def start(analyzeMethod: String => Future[Double],
               killMethod: String => Unit): Unit = {
         this.analyzeMethod = analyzeMethod
         this.killMethod = killMethod
 
-        startServer("localhost", 8080)
+        startServer("localhost", 8000)
     }
 
     override def routes: Route = {
