@@ -10,21 +10,32 @@ import review.sentiment.analysis.classifier.ClassificationManager.{CalculateMark
 
 abstract class AbstractClassifier extends Actor with ActorLogging {
 
+    //
+    // Public methods
+    //
+
     override def receive: Receive = {
         case CalculateMarkRequest(vec) =>
             log.info(s"Calculating mark of vector...")
+
             val mark = calculateMark(vec)
+
             log.info(s"Mark calculation finished: $mark")
             sender() ! CalculateMarkResponse(mark)
 
         case TrainRequest(reviews) =>
         	log.info(s"Training with reviews...")
+
         	val accuracy = train(reviews)
+
         	log.info(s"Train finished. Accuracy: $accuracy")
         	sender() ! TrainResponse(accuracy)
     }
 
-    def calculateMark(vec: SparseVector): Double
+    //
+    // Abstract methods
+    //
 
+    def calculateMark(vec: SparseVector): Double
     def train(reviews: RDD[LabeledPoint]): Double
 }
