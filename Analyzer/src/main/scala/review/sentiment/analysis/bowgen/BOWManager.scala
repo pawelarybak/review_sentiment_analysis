@@ -40,13 +40,13 @@ class BOWManager extends Actor with ActorLogging {
 
             val vecs = annotateTexts(texts, bow)
 
-            log.info(s"Annotation of $textsCount texts complete")
+            log.info(s"Annotation of $textsCount texts complete.")
             sender() ! AnnotateTextsResponse(vecs)
     }
 
     val buildBOW = (texts: RDD[Array[String]]) => {
         texts
-            .flatMap(x => x) // flatten
+            .flatMap(x => x) // flatten to one big array of strings
             .collect
             .toSet // duplicates will be removed automatically
     }

@@ -26,10 +26,16 @@ class ClassificationManager() extends Actor with ActorLogging {
     import ClassificationManager._
 
     private val classifiers = List(
-        context.actorOf(OVRClassifier.props, "ovr_classifier_0"),
-        context.actorOf(OVRClassifier.props, "ovr_classifier_1"),
-        context.actorOf(OVRClassifier.props, "ovr_classifier_2"),
-        context.actorOf(OVRClassifier.props, "ovr_classifier_3")
+        context.actorOf(Props(new NaiveBayesClassifier(1.0)), "nb_classifier_1"),
+        context.actorOf(Props(new NaiveBayesClassifier(2.0)), "nb_classifier_2"),
+        context.actorOf(Props(new NaiveBayesClassifier(3.0)), "nb_classifier_3"),
+        context.actorOf(Props(new NaiveBayesClassifier(4.0)), "nb_classifier_4"),
+        context.actorOf(Props(new NaiveBayesClassifier(5.0)), "nb_classifier_5"),
+        context.actorOf(Props(new NaiveBayesClassifier(6.0)), "nb_classifier_6"),
+        context.actorOf(Props(new NaiveBayesClassifier(7.0)), "nb_classifier_7"),
+        context.actorOf(Props(new NaiveBayesClassifier(8.0)), "nb_classifier_8"),
+        context.actorOf(Props(new NaiveBayesClassifier(9.0)), "nb_classifier_9"),
+        context.actorOf(Props(new NaiveBayesClassifier(10.0)), "nb_classifier_10")
     )
 
     private implicit val timeout: Timeout = Timeout(1000 seconds)
