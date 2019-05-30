@@ -66,8 +66,9 @@ class Stemmer extends Actor with ActorLogging {
     }
 
     private def loadStopWords(): Set[String] = {
-        Source.fromResource("polish-stopwords.txt")
-            .getLines
-            .toSet
+        val stream = getClass.getResourceAsStream("/polish-stopwords.txt")
+        val lines = scala.io.Source.fromInputStream( stream ).getLines
+        val stopWords = lines.toSet
+        stopWords
     }
 }

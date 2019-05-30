@@ -19,8 +19,10 @@ import review.sentiment.analysis.manager.AnalysisManager.{InitializeRequest, Ini
 
 object Spark {
     val session = SparkSession.builder()
-        .master("local[*]")
+        .master("spark://192.168.18.108:7077")
         .appName("rsa-system")
+        .config("spark.jars", "target/scala-2.11/analyzer_2.11-0.1.jar")
+        .config("spark.executor.memory", "8g")
         .getOrCreate()
 
     val ctx = session.sparkContext

@@ -1,7 +1,7 @@
 name := "Analyzer"
 
 version := "0.1"
-scalaVersion := "2.12.8"
+scalaVersion := "2.11.12"
 cancelable in Global := true
 
 scalacOptions := Seq("-unchecked", "-deprecation", "-feature")
