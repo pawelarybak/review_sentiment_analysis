@@ -28,18 +28,14 @@ class ReviewsDB extends Actor with ActorLogging {
         case GetReviewsRequest() =>
             log.info(s"Loading training data from: ${dataPath}...")
 
-            // val ds = Spark.sql.createDataset[String](Source.fromInputStream(
-            //     getClass.getResourceAsStream("/training_data.csv")).getLines().toSeq)
-
             val csvSchema = new StructType()
                 .add("rating", DoubleType, true)
                 .add("text", StringType, true)
             val csv = Spark.sql.read
                 .option("header", "true")
                 .schema(csvSchema)
-                .csv("/tmp/training_data.csv")
                 // .limit(100)
-                // .csv(ds)
+                .csv("src/main/resources/training_data.csv")
             val reviews = csv
                 .map(row => (row.getDouble(0), row.getString(1)))
                 .rdd
