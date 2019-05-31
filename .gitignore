@@ -8,3 +8,6 @@
 # ENSIME plugin specific files
 .ensime
 .ensime_cache/
+
+# Other unrelated files
+.nfs*
