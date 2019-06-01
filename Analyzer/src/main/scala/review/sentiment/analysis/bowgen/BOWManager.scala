@@ -3,10 +3,16 @@ package review.sentiment.analysis.bowgen
 import akka.actor.{Actor, ActorLogging, Props}
 
 import org.apache.spark.rdd.RDD
+import org.apache.spark.ml.feature.{CountVectorizer, CountVectorizerModel}
 import org.apache.spark.mllib.linalg.SparseVector
+import org.apache.spark.sql.DataFrame
 
 import scala.io.Source
 import scala.collection.immutable.Set
+
+import review.sentiment.analysis.Spark
+
+import Spark.session.implicits._
 
 object BOWManager {
     def props: Props = Props[BOWManager]
@@ -21,15 +27,18 @@ class BOWManager extends Actor with ActorLogging {
 
     import BOWManager._
 
-    private var bow = Set[String]()
+    private var cvm: CountVectorizerModel = _
+    implicit val datasetEncoder1 = org.apache.spark.sql.Encoders.kryo[org.apache.spark.mllib.linalg.SparseVector]
+    implicit val datasetEncoder2 = org.apache.spark.sql.Encoders.kryo[org.apache.spark.ml.linalg.SparseVector]
 
     override def receive: Receive = {
         case AddTextsRequest(texts) =>
             log.info(s"Adding ${texts.count} texts to BOW...")
 
-            bow = buildBOW(texts)
-            val newWordsCount = bow.size
-            val vecs = annotateTexts(texts, bow)
+            val df = texts.toDF("words")
+            cvm = buildBOW(df)
+            val newWordsCount = cvm.vocabulary.size
+            val vecs = annotateTexts(df, cvm)
 
             log.info(s"Successfully added ${texts.count} texts to BOW. New words count: $newWordsCount")
             sender() ! AddTextsResponse(newWordsCount, vecs)
@@ -38,33 +47,25 @@ class BOWManager extends Actor with ActorLogging {
             val textsCount = texts.count
             log.info(s"Annotating $textsCount texts using BOW...")
 
-            val vecs = annotateTexts(texts, bow)
+            val df = texts.toDF("words")
+            val vecs = annotateTexts(df, cvm)
 
             log.info(s"Annotation of $textsCount texts complete.")
             sender() ! AnnotateTextsResponse(vecs)
     }
 
-    val buildBOW = (texts: RDD[Array[String]]) => {
-        texts
-            .flatMap(x => x) // flatten to one big array of strings
-            .collect
-            .toSet // duplicates will be removed automatically
+    val buildBOW = (df: DataFrame) => {
+        new CountVectorizer()
+            .setInputCol("words")
+            .setOutputCol("features")
+            .fit(df)
     }
 
-    val annotateTexts = (texts: RDD[Array[String]], bow: Set[String]) => {
-        // Filter out words, which are not present in BOW
-        val filteredTexts = texts.map(_.filter(bow.contains))
-
-        // Count occurencies of each word in each text
-        val textsCounts = filteredTexts.map(_.groupBy(identity).mapValues(x => x.length))
-
-        // Generate full vectors of occurencies
-        val vecs = textsCounts.map(counts => bow.toArray.map(word => counts.getOrElse(word, 0)))
-
-        // Find indexes of only non-zero occurencies
-        val val_idxs = vecs.map(vec => vec.zipWithIndex.filter(v_idx => v_idx._1 > 0).unzip)
-
-        // Make sparse vectors from them
-        val_idxs.map(val_idx => new SparseVector(bow.size, val_idx._2, val_idx._1.map(_.toDouble)))
+    val annotateTexts = (df: DataFrame, cvm: CountVectorizerModel) => {
+        cvm
+            .transform(df)
+            .map(row => row.getAs[org.apache.spark.ml.linalg.SparseVector](1))
+            .map(vec => org.apache.spark.mllib.linalg.SparseVector.fromML(vec))
+            .rdd
     }
 }
