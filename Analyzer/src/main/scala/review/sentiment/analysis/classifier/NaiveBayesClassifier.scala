@@ -3,7 +3,7 @@ package review.sentiment.analysis.classifier
 import akka.actor.Props
 
 import org.apache.spark.ml.classification.{NaiveBayes, NaiveBayesModel}
-import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
+import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
 import org.apache.spark.sql.DataFrame
 
 object NaiveBayesClassifier {
@@ -55,10 +55,10 @@ class NaiveBayesClassifier(targetMark: Double) extends BinaryClassifier(targetMa
 
         log.info("Veryfing model...")
         val predictions = model.transform(testData)
-        val evaluator = new MulticlassClassificationEvaluator()
+        val evaluator = new BinaryClassificationEvaluator()
             .setLabelCol("label")
-            .setPredictionCol("prediction")
-            .setMetricName("accuracy")
+            .setRawPredictionCol("prediction")
+            .setMetricName("areaUnderROC")
         val accuracy = evaluator.evaluate(predictions)
 
         (model, accuracy)
