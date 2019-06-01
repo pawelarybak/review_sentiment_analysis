@@ -10,8 +10,9 @@ import org.apache.spark.mllib.linalg.SparseVector
 import org.apache.spark.mllib.regression.LabeledPoint
 
 import review.sentiment.analysis.Spark
-import review.sentiment.analysis.bowgen.BOWManager
-import review.sentiment.analysis.bowgen.BOWManager.{AddTextsRequest, AddTextsResponse, AnnotateTextsRequest, AnnotateTextsResponse}
+import review.sentiment.analysis.feature.FeatureExtractor
+import review.sentiment.analysis.feature.FeatureExtractor.{AddTextsRequest, AddTextsResponse, ExtractFeaturesRequest, ExtractFeaturesResponse}
+import review.sentiment.analysis.feature.IDFExtractor
 import review.sentiment.analysis.classifier.ClassificationManager
 import review.sentiment.analysis.classifier.ClassificationManager.{CalculateMarkRequest, CalculateMarkResponse, TrainRequest, TrainResponse}
 import review.sentiment.analysis.preprocessing.Stemmer
@@ -42,7 +43,7 @@ class AnalysisManager() extends Actor with ActorLogging {
     private val classificationManager = context.actorOf(ClassificationManager.props, "classification_manager")
     private val preprocessor = context.actorOf(Stemmer.props, "example_preprocessor")
     private val reviewsDB = context.actorOf(ReviewsDB.props, "reviews_db")
-    private val bowManager = context.actorOf(BOWManager.props, "bow_manager")
+    private val featureExtractor = context.actorOf(IDFExtractor.props, "idf_extractor")
 
     override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy(maxNrOfRetries=10, withinTimeRange=1 minute) {
         case _ => Restart
@@ -72,8 +73,8 @@ class AnalysisManager() extends Actor with ActorLogging {
                 .ask(StemmingsRequest(texts))
                 .mapTo[StemmingsResponse]
                 .map(_.processedTexts)
-                .flatMap(processedTexts => bowManager.ask(AnnotateTextsRequest(processedTexts)))
-                .mapTo[AnnotateTextsResponse]
+                .flatMap(processedTexts => featureExtractor.ask(ExtractFeaturesRequest(processedTexts)))
+                .mapTo[ExtractFeaturesResponse]
                 .map(_.vecs.first)
                 // .map(vecs => { log.info(s"Vector size: ${vecs.size}"); vecs})
                 .flatMap(vec => classificationManager.ask(CalculateMarkRequest(vec)))
@@ -111,14 +112,14 @@ class AnalysisManager() extends Actor with ActorLogging {
     }
 
     private def addProcessedTextsToBOW(processedTexts: RDD[Array[String]]): Future[RDD[SparseVector]] = {
-        log.info(s"Adding processed texts to BOW...")
-        bowManager
+        log.info(s"Adding processed texts to Feature Extractor...")
+        featureExtractor
             .ask(AddTextsRequest(processedTexts))
             .mapTo[AddTextsResponse]
             .map(_.vecs)
             // .map(response => (response.newWordsCount, response.vecs))
             // .map({ case (newWordsCount, vecs) =>
-            //     log.info(s"Successfully added texts to BOW. New words count: ${newWordsCount}")
+            //     log.info(s"Successfully added texts to Feature Extractor. New words count: ${newWordsCount}")
             //     vecs
             // })
     }
