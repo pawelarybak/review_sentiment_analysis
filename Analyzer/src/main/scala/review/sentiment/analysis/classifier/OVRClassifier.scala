@@ -45,12 +45,12 @@ class OVRClassifier extends AbstractClassifier with Serializable {
         val predictions = model.get.transform(df)
 
         // Extract prediction
-        predictions.head.getDouble(2)
+        predictions.head.getDouble(2)+1.0
     }
 
     val doTrain = (reviews: RDD[LabeledPoint]) => {
         // Convert reviews to sql rows
-        val rows = reviews.map(review => Row(review.label, review.features.asML))
+        val rows = reviews.map(review => Row(review.label-1.0, review.features.asML))
 
         // Convert reviews RDD to dataframe
         val schema = new StructType()

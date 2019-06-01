@@ -49,12 +49,12 @@ class DTClassifier extends AbstractClassifier with Serializable {
         val predictions = model.get.transform(df)
         predictions.show
         // Extract prediction
-        predictions.head.getString(5).toDouble
+        predictions.head.getString(5).toDouble+1.0
     }
 
     val doTrain = (reviews: RDD[LabeledPoint]) => {
         // Convert reviews to sql rows
-        val rows = reviews.map(review => Row(review.label, review.features.asML))
+        val rows = reviews.map(review => Row(review.label-1.0, review.features.asML))
 
         // Convert reviews RDD to dataframe
         val schema = new StructType()
