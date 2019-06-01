@@ -33,10 +33,12 @@ class ReviewsDB extends Actor with ActorLogging {
                 .add("text", StringType, true)
             val csv = Spark.sql.read
                 .option("header", "true")
+                .option("escape", "\"")
                 .schema(csvSchema)
                 // .limit(100)
                 .csv("src/main/resources/training_data.csv")
             val reviews = csv
+                .filter(row => !(row.isNullAt(0) || row.isNullAt(1)))
                 .map(row => (row.getDouble(0), row.getString(1)))
                 .rdd
 
