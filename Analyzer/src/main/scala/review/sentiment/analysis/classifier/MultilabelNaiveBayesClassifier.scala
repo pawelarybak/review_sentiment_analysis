@@ -3,14 +3,14 @@ package review.sentiment.analysis.classifier
 import akka.actor.Props
 
 import org.apache.spark.ml.classification.{NaiveBayes, NaiveBayesModel}
-import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
+import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
 import org.apache.spark.sql.DataFrame
 
-object NaiveBayesClassifier {
-    def props: Props = Props[NaiveBayesClassifier]
+object MultilabelNaiveBayesClassifier {
+    def props: Props = Props[MultilabelNaiveBayesClassifier]
 }
 
-class NaiveBayesClassifier(targetMark: Double) extends BinaryClassifier(targetMark) {
+class MultilabelNaiveBayesClassifier extends MultilabelClassifier {
 
     //
     // Private members
@@ -39,8 +39,8 @@ class NaiveBayesClassifier(targetMark: Double) extends BinaryClassifier(targetMa
     private val predictMark = (df: DataFrame) => {
         // Predict value
         val predictions = model.get.transform(df)
-        val prob = predictions.select("probability").head
-        log.info(s"probability: ${prob}")
+        val prob = predictions.select("probability")
+        prob.show
 
         // Get final prediction
         predictions.head.getDouble(3)
@@ -55,10 +55,10 @@ class NaiveBayesClassifier(targetMark: Double) extends BinaryClassifier(targetMa
 
         log.info("Veryfing model...")
         val predictions = model.transform(testData)
-        val evaluator = new BinaryClassificationEvaluator()
+        val evaluator = new MulticlassClassificationEvaluator()
             .setLabelCol("label")
-            .setRawPredictionCol("prediction")
-            .setMetricName("areaUnderROC")
+            .setPredictionCol("prediction")
+            .setMetricName("accuracy")
         val accuracy = evaluator.evaluate(predictions)
 
         (model, accuracy)

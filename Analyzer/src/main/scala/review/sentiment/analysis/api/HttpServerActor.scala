@@ -22,7 +22,7 @@ class HttpServerActor(analysisManager: ActorRef) extends Actor with ActorLogging
     implicit val materializer = ActorMaterializer()
     implicit val system = Main.system
     implicit val executionContext = system.dispatcher
-    implicit val timeout = Timeout(5 seconds)
+    implicit val timeout = Timeout(100 seconds)
 
     val httpServer : HttpServer = new HttpServer
 
