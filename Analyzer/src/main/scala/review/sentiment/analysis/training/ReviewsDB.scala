@@ -36,7 +36,7 @@ class ReviewsDB extends Actor with ActorLogging {
                 .option("escape", "\"")
                 .schema(csvSchema)
                 // .limit(100)
-                .csv("src/main/resources/training_data.csv")
+                .csv("src/main/resources/train.csv")
             val reviews = csv
                 .filter(row => !(row.isNullAt(0) || row.isNullAt(1)))
                 .map(row => (row.getDouble(0), row.getString(1)))
