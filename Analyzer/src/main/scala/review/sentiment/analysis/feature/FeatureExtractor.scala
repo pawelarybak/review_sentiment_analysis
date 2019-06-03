@@ -62,7 +62,6 @@ abstract class FeatureExtractor extends Actor with ActorLogging {
     //
 
     private val convertResults = (df: DataFrame) => {
-        df.show
         df
             .map(row => row.getAs[org.apache.spark.ml.linalg.SparseVector](1))
             .map(vec => org.apache.spark.mllib.linalg.SparseVector.fromML(vec))

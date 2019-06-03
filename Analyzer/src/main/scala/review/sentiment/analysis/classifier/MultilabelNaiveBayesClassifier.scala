@@ -39,7 +39,8 @@ class MultilabelNaiveBayesClassifier extends MultilabelClassifier {
     private val predictMark = (df: DataFrame, nbModel: NaiveBayesModel) => {
         // Predict value
         val predictions = nbModel.transform(df)
-        val prob = predictions.select("probability")
+        // val prob = predictions.select("probability")
+        // prob.show
 
         // Get final prediction
         predictions.head.getDouble(3)
