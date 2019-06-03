@@ -42,8 +42,11 @@ class MLPClassifier extends MultilabelClassifier with Serializable {
         // Obtain number total number of features in datasets (aka size of features vectors)
         val nfeatures = trainingData.head.getAs[SparseVector](1).size
 
+        // Obtain number of possible labels in dataset
+        val nlabels = 10 // Fixed, because we know it
+
         // Create the trainer and set its parameters
-        val layers = Array(nfeatures, 5, 11)
+        val layers = Array(nfeatures, 5, nlabels)
         val trainer = new MultilayerPerceptronClassifier()
             .setLayers(layers)
             .setBlockSize(128)
