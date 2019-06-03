@@ -47,7 +47,7 @@ class DTClassifier extends AbstractClassifier with Serializable {
 
         // Predict value
         val predictions = model.get.transform(df)
-        predictions.show
+
         // Extract prediction
         predictions.head.getString(5).toDouble+1.0
     }

@@ -13,7 +13,8 @@ object Spark {
         .master("local[*]")
         .appName("rsa-system")
         .config("spark.jars", "target/scala-2.11/analyzer_2.11-0.1.jar")
-        .config("spark.executor.memory", "8g")
+        .config("spark.executor.memory", "11G")
+        .config("spark.driver.maxResultSize", "1024M")
         .getOrCreate()
 
     val ctx = session.sparkContext

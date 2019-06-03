@@ -27,16 +27,16 @@ class ClassificationManager() extends Actor with ActorLogging {
     import ClassificationManager._
 
     private val classifiers = List(
-        context.actorOf(MultilabelNaiveBayesClassifier.props, "multi_nb_classifier_1"),
-        context.actorOf(MultilabelNaiveBayesClassifier.props, "multi_nb_classifier_2"),
-        context.actorOf(MultilabelNaiveBayesClassifier.props, "multi_nb_classifier_3"),
-        context.actorOf(DTClassifier.props, "dtc_classifier_1"),
-        context.actorOf(DTClassifier.props, "dtc_classifier_2"),
-        context.actorOf(DTClassifier.props, "dtc_classifier_3"),
-        context.actorOf(OVRClassifier.props, "ovr_classifier_1"),
-        context.actorOf(OVRClassifier.props, "ovr_classifier_2"),
-        context.actorOf(OVRClassifier.props, "ovr_classifier_3"),
-        context.actorOf(OVRClassifier.props, "ovr_classifier_4")
+        context.actorOf(MLPClassifier.props, "mlp_classifier_1")
+        // context.actorOf(MLPClassifier.props, "mlp_classifier_2"),
+        // context.actorOf(MLPClassifier.props, "mlp_classifier_3"),
+        // context.actorOf(MLPClassifier.props, "mlp_classifier_4"),
+        // context.actorOf(MLPClassifier.props, "mlp_classifier_5"),
+        // context.actorOf(MLPClassifier.props, "mlp_classifier_6"),
+        // context.actorOf(MLPClassifier.props, "mlp_classifier_7"),
+        // context.actorOf(MLPClassifier.props, "mlp_classifier_8"),
+        // context.actorOf(MLPClassifier.props, "mlp_classifier_9"),
+        // context.actorOf(MLPClassifier.props, "mlp_classifier_10")
     )
 
     private implicit val timeout: Timeout = Timeout(1000 seconds)

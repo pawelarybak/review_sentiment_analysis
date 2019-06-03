@@ -7,7 +7,7 @@ cancelable in Global := true
 scalacOptions := Seq("-unchecked", "-deprecation", "-feature")
 
 // Pass more memory to JVM
-javaOptions in run += "-Xmx8G"
+javaOptions in run += "-Xmx12G"
 
 // Run spark application in forked mode
 fork in (Compile, run) := true
