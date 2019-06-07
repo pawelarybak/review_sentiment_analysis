@@ -51,7 +51,7 @@ Project will be compiled and started. After successful training on the training 
 
 You can test it either by sending GET request with a review text as a body at `$HOST:$PORT/analyze` (e.g. using cURL):
 ```sh
-curl -X GET http://localhost:8000/analyze -d "What a funny movie!"
+curl -X GET http://localhost:8000/analyze -d "Ale świetny film!"
 ```
 
 or just by executing testing application from `scrapper` submodule:
