@@ -1,6 +1,6 @@
 # review_sentiment_analysis
 
-The aim of this project was to write actor-based application, which will be used to perform sentiment analysis of films reviews, written in Polish. It marks given reviews with a marks in scale between '1' (very bad) to '10' (very good). Application is written in Scala with help of Akka and Spark frameworks. Communication with it is realized using an HTTP server. There is also implemented a basic supervisioning strategy. It means, that killing some of the actors doesn't break the application and killed actors are going to be restarted.
+The aim of this project was to write actor-based application, which will be used to perform sentiment analysis of films reviews, written in Polish. It marks given reviews with a labels in scale between '1' (very bad) to '10' (very good). Application is written in Scala with help of Akka and Spark frameworks. Communication with it is realized using an HTTP server. There is also implemented a basic supervisioning strategy. It means, that killing some of the actors doesn't break the application and killed actors are going to be restarted.
 
 # How it works
 
